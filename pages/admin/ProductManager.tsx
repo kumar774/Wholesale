@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { db, storage } from '../../firebase';
 import { Product } from '../../types';
@@ -6,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { Plus, Trash2, Edit, X, Download, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/errorHandler';
 
 export const ProductManager: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -59,11 +59,8 @@ export const ProductManager: React.FC = () => {
       setSelectedIds([]); // Clear selection on refresh
     } catch (error: any) {
       console.error(error);
-      if (error.code === 'permission-denied') {
-         toast.error("Permission denied fetching products.");
-      } else {
-         toast.error("Failed to load products");
-      }
+      // Use utility but customized title
+      toast.error(`Failed to load products: ${getErrorMessage(error)}`);
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +105,7 @@ export const ProductManager: React.FC = () => {
     await toast.promise(bulkDeleteOperation(), {
       loading: `Deleting ${selectedIds.length} products...`,
       success: 'Products deleted successfully!',
-      error: (err) => `Failed to delete: ${err.message}`
+      error: (err) => getErrorMessage(err)
     });
 
     setActionLoading(false);
@@ -151,10 +148,7 @@ export const ProductManager: React.FC = () => {
     await toast.promise(saveOperation(), {
       loading: editingProduct ? 'Updating product...' : 'Creating product...',
       success: editingProduct ? 'Product updated successfully!' : 'Product added successfully!',
-      error: (err) => {
-         if (err.code === 'permission-denied') return "Permission Denied. Check Firestore Rules.";
-         return `Error: ${err.message || 'Something went wrong'}`;
-      }
+      error: (err) => getErrorMessage(err)
     });
 
     setUploading(false);
@@ -176,10 +170,7 @@ export const ProductManager: React.FC = () => {
     await toast.promise(updateOp(), {
         loading: 'Updating status...',
         success: `Product marked as ${newStatus ? 'In Stock' : 'Out of Stock'}`,
-        error: (err) => {
-             if (err.code === 'permission-denied') return "Permission Denied.";
-             return 'Failed to update status';
-        }
+        error: (err) => getErrorMessage(err)
     });
     
     fetchProducts();
@@ -200,7 +191,7 @@ export const ProductManager: React.FC = () => {
     await toast.promise(deleteOperation(), {
       loading: 'Deleting product...',
       success: 'Product deleted successfully!',
-      error: (err) => `Failed to delete: ${err.message}`
+      error: (err) => getErrorMessage(err)
     });
 
     setActionLoading(false);
@@ -338,7 +329,7 @@ export const ProductManager: React.FC = () => {
     await toast.promise(seedOperation(), {
       loading: 'Importing sample data...',
       success: 'Sample products imported!',
-      error: (err) => `Import failed: ${err.message}`
+      error: (err) => getErrorMessage(err)
     });
 
     fetchProducts();

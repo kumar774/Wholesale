@@ -1,16 +1,17 @@
-
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { Product, Banner } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { Button } from '../components/ui/Button';
-import { ArrowRight, Search, Filter, ArrowUpDown } from 'lucide-react';
+import { ArrowRight, Search, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getErrorMessage } from '../utils/errorHandler';
 
 export const Home: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
   // Filter & Search State
@@ -23,6 +24,7 @@ export const Home: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setError(null);
         // Fetch Banners using v8 syntax
         const bannerSnap = await db.collection('banners').get();
         const fetchedBanners = bannerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner)).sort((a, b) => a.order - b.order);
@@ -46,8 +48,10 @@ export const Home: React.FC = () => {
       } catch (error: any) {
         if (error.code === 'permission-denied') {
            console.warn("Home Data: Permission denied (likely due to security rules).");
+           // Don't block UI for permissions, maybe show empty state or fallback
         } else {
            console.error("Error fetching data:", error);
+           setError(getErrorMessage(error));
         }
       } finally {
         setLoading(false);
@@ -78,6 +82,21 @@ export const Home: React.FC = () => {
       if (sortBy === 'price-desc') return b.pricePerKg - a.pricePerKg;
       return 0;
     });
+
+  if (error) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8 bg-gray-50">
+        <div className="bg-red-100 p-4 rounded-full text-red-500 mb-4">
+          <AlertCircle size={32} />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Unable to load store</h2>
+        <p className="text-gray-600 max-w-md">{error}</p>
+        <Button onClick={() => window.location.reload()} className="mt-6" variant="outline">
+          Try Again
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

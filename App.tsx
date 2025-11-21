@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -21,6 +20,7 @@ import { ContentEditor } from './pages/admin/ContentEditor';
 import { AdminLayout } from './components/AdminLayout';
 import { useAuthStore, useSettingsStore } from './store';
 import { db } from './firebase';
+import { handleError } from './utils/errorHandler';
 
 // Protected Route Component
 const RequireAuth: React.FC<React.PropsWithChildren> = ({ children }) => {
@@ -59,7 +59,7 @@ const App: React.FC = () => {
         if (error.code === 'permission-denied') {
           console.warn("Settings: Permission denied. Using default local settings.");
         } else {
-          console.error("Error fetching settings:", error);
+          handleError(error, "Failed to load site settings");
         }
       }
     });

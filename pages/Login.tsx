@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import firebase, { auth, db } from '../firebase';
 import { useAuthStore, useSettingsStore } from '../store';
@@ -6,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import toast from 'react-hot-toast';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
+import { handleError } from '../utils/errorHandler';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -57,18 +57,7 @@ export const Login: React.FC = () => {
       navigate('/admin');
 
     } catch (error: any) {
-      console.error(error);
-      let message = error.message;
-      if (error.code === 'auth/invalid-credential') {
-        message = "Invalid email or password.";
-      } else if (error.code === 'auth/user-not-found') {
-        message = "User not found.";
-      } else if (error.code === 'auth/wrong-password') {
-        message = "Incorrect password.";
-      } else if (error.code === 'auth/too-many-requests') {
-        message = "Access to this account has been temporarily disabled due to many failed login attempts.";
-      }
-      toast.error(message);
+      handleError(error, "Login Failed");
     } finally {
       setIsLoading(false);
     }

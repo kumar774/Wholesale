@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store';
@@ -38,6 +39,14 @@ export const AdminLayout: React.FC = () => {
     { name: 'Content', path: '/admin/content', icon: <FileText size={20} /> },
     { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
   ];
+
+  // Calculate current page title for mobile header
+  const currentItem = menuItems.find(item => 
+    item.path === '/admin' 
+      ? location.pathname === '/admin'
+      : location.pathname.startsWith(item.path)
+  );
+  const pageTitle = currentItem ? currentItem.name : 'Admin Panel';
 
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
@@ -88,7 +97,7 @@ export const AdminLayout: React.FC = () => {
 
       {/* Mobile Header (visible only on small screens) */}
       <div className="md:hidden absolute top-0 left-0 w-full bg-white p-4 shadow-sm z-20 flex justify-between items-center">
-          <span className="font-bold text-brand-600">Admin Panel</span>
+          <span className="font-bold text-brand-600 text-lg">{pageTitle}</span>
           <div className="flex gap-4">
              <Link to="/" className="text-sm text-brand-600 font-medium">Store</Link>
              <button onClick={handleLogoutClick} className="text-sm text-red-600">Logout</button>

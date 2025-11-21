@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { db, auth } from '../../firebase';
 import { Banner } from '../../types';
@@ -6,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { Plus, Trash2, Edit, X, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/errorHandler';
 
 // Helper to convert file to Base64 string
 const convertToBase64 = (file: File): Promise<string> => {
@@ -46,7 +46,8 @@ export const BannerManager: React.FC = () => {
       setBanners(list);
     } catch (error) {
       console.error(error);
-      // Don't toast on fetch error to avoid spam if rules block read for now
+      // Use default localized error, or silently fail if strict rules
+      toast.error(`Failed to load banners: ${getErrorMessage(error)}`);
     } finally {
       setIsLoading(false);
     }
@@ -108,13 +109,8 @@ export const BannerManager: React.FC = () => {
       fetchBanners();
 
     } catch (error: any) {
-      console.error("Banner Operation Failed:", error);
-      
-      if (error.code === 'permission-denied') {
-        toast.error("Permission Denied. Please check your Firestore Rules.", { id: toastId });
-      } else {
-        toast.error(`Error: ${error.message || "Operation failed"}`, { id: toastId });
-      }
+      const msg = getErrorMessage(error);
+      toast.error(msg, { id: toastId });
     } finally {
       setUploading(false);
     }
@@ -130,12 +126,8 @@ export const BannerManager: React.FC = () => {
       toast.success("Banner Deleted Successfully!", { id: toastId });
       await fetchBanners();
     } catch (error: any) {
-      console.error(error);
-      if (error.code === 'permission-denied') {
-        toast.error("Permission Denied. Check Firestore Rules.", { id: toastId });
-      } else {
-        toast.error("Failed to delete: " + error.message, { id: toastId });
-      }
+      const msg = getErrorMessage(error);
+      toast.error(msg, { id: toastId });
     } finally {
       setActionLoading(false);
       setDeleteId(null);
