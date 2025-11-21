@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../../firebase';
 import { Order, CONSTANTS } from '../../types';
@@ -21,9 +22,13 @@ export const OrderList: React.FC = () => {
       const snap = await db.collection('orders').orderBy('createdAt', 'desc').get();
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Order));
       setOrders(list);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching orders:", error);
-      toast.error("Failed to load orders");
+      if (error.code === 'permission-denied') {
+         toast.error("Access Denied: Cannot load orders.");
+      } else {
+         toast.error("Failed to load orders");
+      }
     } finally {
       setLoading(false);
     }

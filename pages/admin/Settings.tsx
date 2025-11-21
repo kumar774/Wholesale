@@ -1,11 +1,21 @@
 
 import React, { useEffect, useState } from 'react';
-import { db, storage } from '../../firebase';
+import { db } from '../../firebase';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { Save, Settings as SettingsIcon, Image as ImageIcon, UploadCloud, LayoutTemplate, Link as LinkIcon, Plus, Trash2, Edit, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { StoreSettings, CONSTANTS } from '../../types';
+
+// Helper to convert file to Base64
+const convertToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 export const Settings: React.FC = () => {
   const [settings, setSettings] = useState<StoreSettings>({
@@ -60,7 +70,7 @@ export const Settings: React.FC = () => {
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
-        toast.error("Failed to load settings");
+        // Don't toast for fetch error to avoid annoying users if rules are strict
       } finally {
         setLoading(false);
       }
@@ -79,12 +89,12 @@ export const Settings: React.FC = () => {
     try {
       let logoUrl = settings.logoUrl;
 
-      // Handle Logo Upload if file is selected
+      // Handle Logo Upload via Base64
       if (logoFile) {
-        const sanitizedName = logoFile.name.replace(/[^a-zA-Z0-9.]/g, '_');
-        const storageRef = storage.ref(`settings/${Date.now()}_${sanitizedName}`);
-        const snapshot = await storageRef.put(logoFile);
-        logoUrl = await snapshot.ref.getDownloadURL();
+        if (logoFile.size > 700 * 1024) {
+           throw new Error("Logo file too large. Please use an image under 700KB.");
+        }
+        logoUrl = await convertToBase64(logoFile);
       }
 
       const updatedSettings = {
@@ -100,7 +110,11 @@ export const Settings: React.FC = () => {
       setIsConfirmOpen(false);
     } catch (error: any) {
       console.error("Error saving settings:", error);
-      toast.error("Failed to save settings: " + error.message);
+      if (error.code === 'permission-denied') {
+         toast.error("Permission Denied. Please check your Firestore Rules.");
+      } else {
+         toast.error("Failed to save settings: " + error.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -216,7 +230,7 @@ export const Settings: React.FC = () => {
                     <div className="flex flex-col items-center pointer-events-none">
                       <UploadCloud size={24} className="text-gray-400 mb-2" />
                       <span className="text-sm text-gray-600">
-                        {logoFile ? logoFile.name : "Click to upload logo"}
+                        {logoFile ? logoFile.name : "Click to upload logo (Max 700KB)"}
                       </span>
                     </div>
                   </div>

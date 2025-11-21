@@ -45,15 +45,23 @@ const App: React.FC = () => {
   const { settings, setSettings } = useSettingsStore();
 
   useEffect(() => {
-    const unsubscribe = db.collection('settings').doc('general').onSnapshot((doc) => {
-      if (doc.exists) {
-        const data = doc.data();
-        if (data) {
-          setSettings(data as any);
+    const unsubscribe = db.collection('settings').doc('general').onSnapshot({
+      next: (doc) => {
+        if (doc.exists) {
+          const data = doc.data();
+          if (data) {
+            setSettings(data as any);
+          }
+        }
+      },
+      error: (error) => {
+        // Suppress permission-denied errors for public users if rules are strict
+        if (error.code === 'permission-denied') {
+          console.warn("Settings: Permission denied. Using default local settings.");
+        } else {
+          console.error("Error fetching settings:", error);
         }
       }
-    }, (error) => {
-      console.error("Error fetching settings:", error);
     });
     return () => unsubscribe();
   }, [setSettings]);

@@ -1,10 +1,10 @@
+
 import React, { useEffect, useState } from 'react';
-import firebase from '../../firebase';
 import { db, storage } from '../../firebase';
 import { Product } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
-import { Plus, Trash2, Edit, X, Download, Search, Filter, CheckSquare, Square, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Edit, X, Download, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const ProductManager: React.FC = () => {
@@ -57,9 +57,13 @@ export const ProductManager: React.FC = () => {
       });
       setProducts(list);
       setSelectedIds([]); // Clear selection on refresh
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Failed to load products");
+      if (error.code === 'permission-denied') {
+         toast.error("Permission denied fetching products.");
+      } else {
+         toast.error("Failed to load products");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +135,7 @@ export const ProductManager: React.FC = () => {
         images: imageUrl ? [imageUrl] : [],
         stockQuantity: Number(formData.stockQuantity) || 0,
         lowStockThreshold: Number(formData.lowStockThreshold) || 0,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: new Date(),
       };
 
       if (editingProduct) {
@@ -139,7 +143,7 @@ export const ProductManager: React.FC = () => {
       } else {
         await db.collection('products').add({
           ...productData,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          createdAt: new Date()
         });
       }
     };
@@ -147,7 +151,10 @@ export const ProductManager: React.FC = () => {
     await toast.promise(saveOperation(), {
       loading: editingProduct ? 'Updating product...' : 'Creating product...',
       success: editingProduct ? 'Product updated successfully!' : 'Product added successfully!',
-      error: (err) => `Error: ${err.message || 'Something went wrong'}`
+      error: (err) => {
+         if (err.code === 'permission-denied') return "Permission Denied. Check Firestore Rules.";
+         return `Error: ${err.message || 'Something went wrong'}`;
+      }
     });
 
     setUploading(false);
@@ -162,14 +169,17 @@ export const ProductManager: React.FC = () => {
     const updateOp = async () => {
         await db.collection('products').doc(product.id).update({
             inStock: newStatus,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            updatedAt: new Date()
         });
     };
 
     await toast.promise(updateOp(), {
         loading: 'Updating status...',
         success: `Product marked as ${newStatus ? 'In Stock' : 'Out of Stock'}`,
-        error: 'Failed to update status'
+        error: (err) => {
+             if (err.code === 'permission-denied') return "Permission Denied.";
+             return 'Failed to update status';
+        }
     });
     
     fetchProducts();
@@ -317,8 +327,8 @@ export const ProductManager: React.FC = () => {
           inStock: true,
           stockQuantity: getRandomStock(),
           lowStockThreshold: 20,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
       });
 

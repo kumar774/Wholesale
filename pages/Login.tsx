@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import firebase, { auth, db } from '../firebase';
 import { useAuthStore, useSettingsStore } from '../store';
@@ -40,10 +41,14 @@ export const Login: React.FC = () => {
         await db.collection('admins').doc(user.email).set({
           email: user.email,
           role: 'admin',
-          lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+          lastLogin: new Date()
         }, { merge: true });
-      } catch (firestoreError) {
-        console.warn("Could not update admin record (likely permission issue if not main admin):", firestoreError);
+      } catch (firestoreError: any) {
+        console.warn("Could not update admin record:", firestoreError);
+        if (firestoreError.code === 'permission-denied') {
+            // Just log it, don't stop the login if auth succeeded
+            console.log("Admin write permission denied - likely guest or restricted user.");
+        }
       }
 
       // AUTHENTICATION SUCCESSFUL
@@ -102,7 +107,7 @@ export const Login: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 ml-1">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                   <Lock size={18} />

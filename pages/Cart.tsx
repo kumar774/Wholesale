@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useCartStore, useSettingsStore } from '../store';
 import { Button } from '../components/ui/Button';
@@ -5,7 +6,7 @@ import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { Trash2, Plus, Minus, MessageCircle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import firebase, { db } from '../firebase';
+import { db } from '../firebase';
 
 export const Cart: React.FC = () => {
   const { items, removeItem, updateQty, total, clearCart } = useCartStore();
@@ -83,7 +84,7 @@ Please confirm my order.`;
         items: items,
         totalAmount: total(),
         whatsappMessage: message,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: new Date(),
         status: 'new',
         platform: 'web'
       });

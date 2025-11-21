@@ -1,11 +1,21 @@
+
 import React, { useEffect, useState } from 'react';
-import firebase from '../../firebase';
-import { db, storage } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { Banner } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { Plus, Trash2, Edit, X, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Helper to convert file to Base64 string
+const convertToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 export const BannerManager: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -36,7 +46,7 @@ export const BannerManager: React.FC = () => {
       setBanners(list);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to load banners");
+      // Don't toast on fetch error to avoid spam if rules block read for now
     } finally {
       setIsLoading(false);
     }
@@ -49,9 +59,14 @@ export const BannerManager: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
     if (!editingBanner && !imageFile && !formData.imageUrl) {
       toast.error("Please select an image");
+      return;
+    }
+
+    // Verify Auth
+    if (!auth.currentUser) {
+      toast.error("You must be logged in to perform this action");
       return;
     }
 
@@ -61,22 +76,20 @@ export const BannerManager: React.FC = () => {
     try {
       let imageUrl = formData.imageUrl || '';
 
-      // Upload Image if new file selected
+      // Convert Image to Base64 if new file selected
       if (imageFile) {
-        // Sanitize filename to avoid storage path issues
-        const sanitizedName = imageFile.name.replace(/[^a-zA-Z0-9.]/g, '_');
-        const storageRef = storage.ref(`banners/${Date.now()}_${sanitizedName}`);
-        const snapshot = await storageRef.put(imageFile);
-        imageUrl = await snapshot.ref.getDownloadURL();
+        // Check size < 700KB to be safe for Firestore (1MB limit)
+        if (imageFile.size > 700 * 1024) {
+           throw new Error("Image is too large. Please use an image under 700KB.");
+        }
+        imageUrl = await convertToBase64(imageFile);
       }
-
-      // Safe timestamp access
-      const timestamp = firebase.firestore?.FieldValue?.serverTimestamp() || new Date();
 
       const bannerData = {
         ...formData,
         imageUrl,
-        updatedAt: timestamp,
+        order: Number(formData.order) || 0,
+        updatedAt: new Date(), // Use client-side date to avoid namespace issues
       };
 
       if (editingBanner) {
@@ -84,19 +97,24 @@ export const BannerManager: React.FC = () => {
       } else {
         await db.collection('banners').add({
           ...bannerData,
-          createdAt: timestamp
+          createdAt: new Date()
         });
       }
-      
-      toast.success(editingBanner ? 'Banner Updated Successfully!' : 'Banner Added Successfully!', { id: toastId });
+
+      toast.success(editingBanner ? 'Banner Updated!' : 'Banner Created!', { id: toastId });
       
       setIsModalOpen(false);
       resetForm();
       fetchBanners();
 
     } catch (error: any) {
-      console.error("Banner save error:", error);
-      toast.error(`Error: ${error.message || 'Operation failed'}`, { id: toastId });
+      console.error("Banner Operation Failed:", error);
+      
+      if (error.code === 'permission-denied') {
+        toast.error("Permission Denied. Please check your Firestore Rules.", { id: toastId });
+      } else {
+        toast.error(`Error: ${error.message || "Operation failed"}`, { id: toastId });
+      }
     } finally {
       setUploading(false);
     }
@@ -105,13 +123,19 @@ export const BannerManager: React.FC = () => {
   const handleConfirmDelete = async () => {
     if (!deleteId) return;
     setActionLoading(true);
+    const toastId = toast.loading("Deleting banner...");
+    
     try {
       await db.collection('banners').doc(deleteId).delete();
-      toast.success("Banner Deleted Successfully!");
+      toast.success("Banner Deleted Successfully!", { id: toastId });
       await fetchBanners();
     } catch (error: any) {
       console.error(error);
-      toast.error("Failed to delete: " + error.message);
+      if (error.code === 'permission-denied') {
+        toast.error("Permission Denied. Check Firestore Rules.", { id: toastId });
+      } else {
+        toast.error("Failed to delete: " + error.message, { id: toastId });
+      }
     } finally {
       setActionLoading(false);
       setDeleteId(null);
@@ -251,7 +275,7 @@ export const BannerManager: React.FC = () => {
                       required
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
                       value={formData.order} 
-                      onChange={e => setFormData({...formData, order: parseInt(e.target.value)})} 
+                      onChange={e => setFormData({...formData, order: parseInt(e.target.value) || 0})} 
                    />
                 </div>
               </div>
@@ -268,7 +292,7 @@ export const BannerManager: React.FC = () => {
                   <div className="flex flex-col items-center pointer-events-none">
                     <ImageIcon size={32} className="text-gray-400 mb-2" />
                     <span className="text-sm text-gray-600">
-                      {imageFile ? imageFile.name : "Click to upload image"}
+                      {imageFile ? imageFile.name : "Click to upload image (Max 700KB)"}
                     </span>
                   </div>
                 </div>

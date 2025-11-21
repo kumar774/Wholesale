@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { Product, Banner } from '../types';
@@ -42,8 +43,12 @@ export const Home: React.FC = () => {
         });
         
         setProducts(fetchedProducts);
-      } catch (error) {
-        console.error("Error fetching data:", error);
+      } catch (error: any) {
+        if (error.code === 'permission-denied') {
+           console.warn("Home Data: Permission denied (likely due to security rules).");
+        } else {
+           console.error("Error fetching data:", error);
+        }
       } finally {
         setLoading(false);
       }

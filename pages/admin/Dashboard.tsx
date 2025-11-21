@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../../firebase';
 import { Package, ShoppingCart, Users, TrendingUp, DollarSign, Activity, AlertTriangle, ArrowRight, CheckSquare } from 'lucide-react';
@@ -22,13 +23,39 @@ export const Dashboard: React.FC = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const pSnap = await db.collection('products').get();
-        const oSnap = await db.collection('orders').get();
-        const aSnap = await db.collection('admins').get();
-
-        const products = pSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        const orders = oSnap.docs.map(doc => doc.data());
         
+        // Fetch Products
+        let products: Product[] = [];
+        let pSize = 0;
+        try {
+            const pSnap = await db.collection('products').get();
+            products = pSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+            pSize = pSnap.size;
+        } catch (e: any) {
+            if (e.code !== 'permission-denied') console.error("Products fetch error", e);
+        }
+
+        // Fetch Orders
+        let orders: any[] = [];
+        let oSize = 0;
+        try {
+            const oSnap = await db.collection('orders').get();
+            orders = oSnap.docs.map(doc => doc.data());
+            oSize = oSnap.size;
+        } catch (e: any) {
+            if (e.code !== 'permission-denied') console.error("Orders fetch error", e);
+        }
+        
+        // Fetch Admins (Isolate this as it often requires higher privs)
+        let aSize = 1; // Default to 1 (self)
+        try {
+            const aSnap = await db.collection('admins').get();
+            aSize = aSnap.size;
+        } catch (e: any) {
+            // Ignore permission error for admins, just show 1
+            // console.warn("Admin stats restricted");
+        }
+
         // Calculate Low Stock
         const lowStock = products.filter(p => {
             const qty = p.stockQuantity || 0;
@@ -71,9 +98,9 @@ export const Dashboard: React.FC = () => {
         setChartData(Array.from(last7Days.values()));
 
         setStats({
-          products: pSnap.size,
-          orders: oSnap.size,
-          admins: aSnap.size || 1,
+          products: pSize,
+          orders: oSize,
+          admins: aSize,
           revenue: totalRevenue,
           aov: avgOrderValue
         });

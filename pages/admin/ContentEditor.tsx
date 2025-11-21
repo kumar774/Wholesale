@@ -5,7 +5,6 @@ import { db } from '../../firebase';
 import { Button } from '../../components/ui/Button';
 import { Save, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
-import firebase from '../../firebase';
 
 export const ContentEditor: React.FC = () => {
   const { pageId } = useParams<{ pageId: string }>();
@@ -48,12 +47,16 @@ export const ContentEditor: React.FC = () => {
     try {
       await db.collection('content').doc(pageId).set({
         html,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: new Date()
       }, { merge: true });
       toast.success("Content saved successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving content:", error);
-      toast.error("Failed to save content");
+      if (error.code === 'permission-denied') {
+         toast.error("Permission Denied. Check Firestore Rules.");
+      } else {
+         toast.error("Failed to save content");
+      }
     } finally {
       setSaving(false);
     }
