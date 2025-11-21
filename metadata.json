@@ -1,0 +1,5 @@
+{
+  "name": "VegitableWholesale",
+  "description": "A modern vegetable wholesale web application with WhatsApp checkout and Firebase backend.",
+  "requestFramePermissions": []
+}
